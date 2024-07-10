@@ -90,12 +90,12 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
 
 # ECS Cluster
 resource "aws_ecs_cluster" "main" {
-  name = "ashok-ecs-cluster"
+  name = "ashok-ecs-cluster-unique"
 }
 
 # ECS Task Definitions
 resource "aws_ecs_task_definition" "reactjs" {
-  family                   = "reactjs-task"
+  family                   = "reactjs-task-unique"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
@@ -113,7 +113,7 @@ resource "aws_ecs_task_definition" "reactjs" {
 }
 
 resource "aws_ecs_task_definition" "strapi" {
-  family                   = "strapi-task"
+  family                   = "strapi-task-unique"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
@@ -154,7 +154,7 @@ resource "aws_ecs_task_definition" "strapi" {
 
 # ECS Services
 resource "aws_ecs_service" "reactjs" {
-  name            = "reactjs-service"
+  name            = "reactjs-service-unique"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.reactjs.arn
   desired_count   = 1
@@ -172,7 +172,7 @@ resource "aws_ecs_service" "reactjs" {
 }
 
 resource "aws_ecs_service" "strapi" {
-  name            = "strapi-service"
+  name            = "strapi-service-unique"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.strapi.arn
   desired_count   = 1
