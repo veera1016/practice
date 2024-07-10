@@ -2,6 +2,8 @@ provider "aws" {
   region = "ca-central-1"
 }
 
+data "aws_availability_zones" "available" {}
+
 # VPC
 resource "aws_vpc" "main" {
   cidr_block = "10.0.0.0/16"
@@ -48,6 +50,13 @@ resource "aws_security_group" "main" {
   ingress {
     from_port   = 80
     to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 1337
+    to_port     = 1337
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -182,4 +191,30 @@ resource "aws_ecs_service" "strapi" {
   }
 }
 
-data "aws_availability_zones" "available" {}
+resource "aws_route53_zone" "main" {
+  name = "contentecho.in"
+}
+
+resource "aws_route53_record" "reactjs_subdomain" {
+  zone_id = aws_route53_zone.main.zone_id
+  name    = "ashok.contentecho.in"
+  type    = "A"
+
+  alias {
+    name                   = aws_ecs_service.reactjs.id
+    zone_id                = aws_route53_zone.main.zone_id
+    evaluate_target_health = false
+  }
+}
+
+resource "aws_route53_record" "strapi_subdomain" {
+  zone_id = aws_route53_zone.main.zone_id
+  name    = "ashok-api.contentecho.in"
+  type    = "A"
+
+  alias {
+    name                   = aws_ecs_service.strapi.id
+    zone_id                = aws_route53_zone.main.zone_id
+    evaluate_target_health = false
+  }
+}
