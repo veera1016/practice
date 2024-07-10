@@ -2,8 +2,6 @@ provider "aws" {
   region = "ca-central-1"
 }
 
-data "aws_availability_zones" "available" {}
-
 # VPC
 resource "aws_vpc" "main" {
   cidr_block = "10.0.0.0/16"
@@ -171,6 +169,10 @@ resource "aws_ecs_service" "reactjs" {
     capacity_provider = "FARGATE_SPOT"
     weight = 1
   }
+
+  service_registries {
+    registry_arn = aws_service_discovery_service.reactjs.arn
+  }
 }
 
 resource "aws_ecs_service" "strapi" {
@@ -189,8 +191,56 @@ resource "aws_ecs_service" "strapi" {
     capacity_provider = "FARGATE_SPOT"
     weight = 1
   }
+
+  service_registries {
+    registry_arn = aws_service_discovery_service.strapi.arn
+  }
 }
 
+# Service Discovery
+resource "aws_service_discovery_private_dns_namespace" "main" {
+  name        = "example"
+  description = "Private DNS namespace for ECS services"
+  vpc         = aws_vpc.main.id
+}
+
+resource "aws_service_discovery_service" "reactjs" {
+  name = "reactjs-service"
+
+  dns_config {
+    namespace_id = aws_service_discovery_private_dns_namespace.main.id
+
+    dns_records {
+      ttl  = 10
+      type = "A"
+    }
+  }
+
+  health_check_custom_config {
+    failure_threshold = 1
+  }
+}
+
+resource "aws_service_discovery_service" "strapi" {
+  name = "strapi-service"
+
+  dns_config {
+    namespace_id = aws_service_discovery_private_dns_namespace.main.id
+
+    dns_records {
+      ttl  = 10
+      type = "A"
+    }
+  }
+
+  health_check_custom_config {
+    failure_threshold = 1
+  }
+}
+
+data "aws_availability_zones" "available" {}
+
+# Route53 Records
 resource "aws_route53_zone" "main" {
   name = "contentecho.in"
 }
@@ -198,23 +248,35 @@ resource "aws_route53_zone" "main" {
 resource "aws_route53_record" "reactjs_subdomain" {
   zone_id = aws_route53_zone.main.zone_id
   name    = "ashok.contentecho.in"
-  type    = "A"
-
-  alias {
-    name                   = aws_ecs_service.reactjs.id
-    zone_id                = aws_route53_zone.main.zone_id
-    evaluate_target_health = false
-  }
+  type    = "CNAME"
+  ttl     = 300
+  records = [aws_service_discovery_service.reactjs.name + "." + aws_service_discovery_private_dns_namespace.main.name]
 }
 
 resource "aws_route53_record" "strapi_subdomain" {
   zone_id = aws_route53_zone.main.zone_id
   name    = "ashok-api.contentecho.in"
-  type    = "A"
+  type    = "CNAME"
+  ttl     = 300
+  records = [aws_service_discovery_service.strapi.name + "." + aws_service_discovery_private_dns_namespace.main.name]
+}
 
-  alias {
-    name                   = aws_ecs_service.strapi.id
-    zone_id                = aws_route53_zone.main.zone_id
-    evaluate_target_health = false
-  }
+output "ecs_task_definition_arn" {
+  value = aws_ecs_task_definition.strapi.arn
+}
+
+output "ecs_cluster_id" {
+  value = aws_ecs_cluster.main.id
+}
+
+output "ecs_service_name" {
+  value = aws_ecs_service.strapi.name
+}
+
+output "ecs_service_task_definition" {
+  value = aws_ecs_service.strapi.task_definition
+}
+
+output "route53_dns_name" {
+  value = aws_route53_record.strapi_subdomain.fqdn
 }
