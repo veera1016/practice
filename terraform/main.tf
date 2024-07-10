@@ -71,7 +71,7 @@ resource "aws_security_group" "main" {
 
 # IAM Role for ECS Task Execution
 resource "aws_iam_role" "ecs_task_execution_role" {
-  name = "ecs_task_execution_role"
+  name = "ecs_task_execution_role_unique"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
